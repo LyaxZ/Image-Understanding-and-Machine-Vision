@@ -1,0 +1,9 @@
+/Data/
+
+*.zip
+*.tar.gz
+*.pth
+*.bin
+*.h5
+*.ckpt
+*.csv
