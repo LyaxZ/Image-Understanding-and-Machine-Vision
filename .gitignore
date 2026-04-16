@@ -1,4 +1,5 @@
 /Data/
+/cifar10_temp/
 
 *.zip
 *.tar.gz
