@@ -1,5 +1,7 @@
 /Data/
 /cifar10_temp/
+/codes/task3/att_faces/
+/codes/task3/gt_db/
 
 *.zip
 *.tar.gz
