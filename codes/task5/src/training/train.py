@@ -23,15 +23,12 @@ NUM_CLASSES = 13   # 可根据实际类别数修改
 
 def get_transforms():
     train_trans = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomCrop(224),
         transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(15),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
     eval_trans = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])

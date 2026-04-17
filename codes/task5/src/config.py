@@ -15,6 +15,7 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 RAW_NEW_DIR = os.path.join(DATA_DIR, "raw_new")
 MERGED_DIR = os.path.join(DATA_DIR, "merged")
+PROCESSED_DIR = os.path.join(DATA_DIR, "processed_224")
 AUGMENTED_DIR = os.path.join(DATA_DIR, "augmented")
 
 # CSV 文件路径

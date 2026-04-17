@@ -5,7 +5,7 @@ import random
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import MERGED_DIR, AUGMENTED_DIR
+from config import PROCESSED_DIR, AUGMENTED_DIR
 
 TARGET_PER_CLASS = 700
 
@@ -20,8 +20,8 @@ def augment(img):
     return img
 
 def main():
-    for cls in os.listdir(MERGED_DIR):
-        cls_path = os.path.join(MERGED_DIR, cls)
+    for cls in os.listdir(PROCESSED_DIR):
+        cls_path = os.path.join(PROCESSED_DIR, cls)
         if not os.path.isdir(cls_path):
             continue
         out_path = os.path.join(AUGMENTED_DIR, cls)
