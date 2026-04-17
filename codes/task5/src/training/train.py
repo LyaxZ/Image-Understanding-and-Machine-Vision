@@ -16,15 +16,15 @@ from utils.dataset import CarBrandDataset
 from models.improved_cnn import ImprovedCNN
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
 BATCH_SIZE = 64
-EPOCHS = 50
+EPOCHS = 20
 LR = 1e-3
 NUM_CLASSES = 6  # 可根据实际类别数修改
 
 def get_transforms():
     train_trans = transforms.Compose([
         transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(15),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -40,9 +40,22 @@ def train():
     val_set = CarBrandDataset(VAL_CSV, AUGMENTED_DIR, eval_trans)
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
-
+    
+    # 1. 先实例化模型结构
     model = ImprovedCNN(num_classes=NUM_CLASSES).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+    
+    # 2. 加载预训练权重 (假设保存的是 state_dict)
+    model_path = os.path.join(MODELS_DIR, f"improved_cnn_{NUM_CLASSES}class_best.pth")
+    print(f"Looking for pretrained weights at: {model_path}")
+    if os.path.exists(model_path):
+        print(f"Loading pretrained weights from {model_path}")
+        # 加载 state_dict 并载入模型
+        state_dict = torch.load(model_path, map_location=DEVICE)
+        model.load_state_dict(state_dict)
+    else:
+        print("No pretrained weights found, training from scratch.")
+    
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     scaler = torch.amp.GradScaler('cuda')
