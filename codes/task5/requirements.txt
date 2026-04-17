@@ -10,3 +10,4 @@ icrawler
 lxml
 opencv-python
 grad-cam
+ultralytics
