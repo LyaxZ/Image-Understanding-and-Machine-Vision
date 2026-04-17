@@ -5,9 +5,9 @@ import random
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import PROCESSED_DIR, AUGMENTED_DIR
+from config import AUGMENTED_DIR, PROCESSED_DIR
 
-TARGET_PER_CLASS = 700
+TARGET_PER_CLASS = 600
 
 def augment(img):
     if random.random() < 0.5:
