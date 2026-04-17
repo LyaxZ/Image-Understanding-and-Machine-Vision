@@ -18,12 +18,12 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ========== 配置 ==========
 BASE_DIR = r"D:\DeepLearning\Image-Understanding-and-Machine-Vision\codes\task5"
-DATA_DIR = os.path.join(BASE_DIR, "data", "augmented")
+DATA_DIR = os.path.join(BASE_DIR, "data", "cars")
 TRAIN_CSV = os.path.join(BASE_DIR, "data", "train.csv")
 VAL_CSV   = os.path.join(BASE_DIR, "data", "val.csv")
 
 BATCH_SIZE = 64
-EPOCHS = 30
+EPOCHS = 50
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4
 # ==========================

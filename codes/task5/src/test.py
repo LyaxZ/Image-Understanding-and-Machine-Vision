@@ -7,9 +7,9 @@ from dataset import CarBrandDataset
 from improved_cnn import ImprovedCNN
 
 BASE_DIR = r"D:\DeepLearning\Image-Understanding-and-Machine-Vision\codes\task5"
-DATA_DIR = os.path.join(BASE_DIR, "data", "augmented")
+DATA_DIR = os.path.join(BASE_DIR, "data", "cars")
 TEST_CSV = os.path.join(BASE_DIR, "data", "test.csv")
-MODEL_PATH = os.path.join(BASE_DIR, "models", "improved_cnn_best.pth")
+MODEL_PATH = os.path.join(BASE_DIR, "models", "improved_cnn_best1.pth")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
