@@ -19,7 +19,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 64
 EPOCHS = 50
 LR = 1e-3
-NUM_CLASSES = 13   # 可根据实际类别数修改
+NUM_CLASSES = 6  # 可根据实际类别数修改
 
 def get_transforms():
     train_trans = transforms.Compose([
