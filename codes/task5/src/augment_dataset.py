@@ -8,8 +8,8 @@ import random
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
 BASE_DIR = r"D:\College\大三下\图像理解与机器视觉\Expe\codes\task5"
-MERGED_DIR = os.path.join(BASE_DIR, "data", "merged")
-AUGMENTED_DIR = os.path.join(BASE_DIR, "data", "augmented")
+MERGED_DIR = os.path.join(BASE_DIR, "data", "preprocessed")
+AUGMENTED_DIR = os.path.join(BASE_DIR, "data", "cars")
 
 TARGET_PER_CLASS = 700
 

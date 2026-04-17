@@ -8,7 +8,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 BASE_DIR = r"D:\College\大三下\图像理解与机器视觉\Expe\codes\task5"
-AUGMENTED_DIR = os.path.join(BASE_DIR, "data", "augmented")
+AUGMENTED_DIR = os.path.join(BASE_DIR, "data", "cars")
 OUTPUT_DIR = os.path.join(BASE_DIR, "data")
 
 TRAIN_RATIO = 0.7
