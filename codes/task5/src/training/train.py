@@ -2,6 +2,7 @@
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
 import torch
 import torch.nn as nn
@@ -14,13 +15,20 @@ import matplotlib.pyplot as plt
 from config import AUGMENTED_DIR, TRAIN_CSV, VAL_CSV, MODELS_DIR, LOGS_DIR
 from utils.dataset import CarBrandDataset
 from models.improved_cnn import ImprovedCNN
+from models.efficientnet import EfficientNetTransfer
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {DEVICE}")
 BATCH_SIZE = 64
-EPOCHS = 20
+EPOCHS = 8
 LR = 1e-3
-NUM_CLASSES = 6  # 可根据实际类别数修改
+
+# 配置区添加模型选择
+MODEL_NAME = "efficientnet"   # 可选 "improved" 或 "efficientnet"
+NUM_CLASSES = 6              # 根据你的任务修改
+PRETRAINED = True             # EfficientNet 建议使用预训练权重
+
+
 
 def get_transforms():
     train_trans = transforms.Compose([
@@ -34,6 +42,48 @@ def get_transforms():
     ])
     return train_trans, eval_trans
 
+def load_pretrained(model, model_name, num_classes, device):
+    """
+    根据模型名称加载对应的预训练权重
+    - ImprovedCNN: 尝试加载 task5/models/improved_cnn_{num_classes}class_best.pth
+                    若类别数不匹配，则只加载卷积层（迁移学习）
+    - EfficientNet: 使用 timm 自带的 ImageNet 预训练，无需额外文件
+    """
+    if model_name == "improved":
+        model_path = os.path.join(MODELS_DIR, f"improved_cnn_{num_classes}class_best.pth")
+        print(f"Looking for ImprovedCNN pretrained weights at: {model_path}")
+        if os.path.exists(model_path):
+            print(f"Loading pretrained weights from {model_path}")
+            state_dict = torch.load(model_path, map_location=device)
+            model_dict = model.state_dict()
+            # 检查类别数是否匹配（通过 fc2 层的输出维度判断）
+            pretrained_num_classes = state_dict['fc2.weight'].shape[0]
+            if pretrained_num_classes != num_classes:
+                print(f"⚠️ 类别数不匹配 (预训练: {pretrained_num_classes} → 当前: {num_classes})，仅加载卷积层")
+                # 过滤掉全连接层参数
+                filtered_dict = {}
+                for k, v in state_dict.items():
+                    if k in model_dict and v.shape == model_dict[k].shape:
+                        if not k.startswith('fc'):   # 排除分类头
+                            filtered_dict[k] = v
+                model_dict.update(filtered_dict)
+                model.load_state_dict(model_dict)
+                print(f"✅ 成功加载 {len(filtered_dict)} 个卷积层参数")
+            else:
+                model.load_state_dict(state_dict)
+                print("✅ 完整加载预训练权重")
+        else:
+            print("No ImprovedCNN pretrained weights found, training from scratch.")
+
+    elif model_name == "efficientnet":
+        # EfficientNet 已经在初始化时通过 timm 的 pretrained=True 加载了 ImageNet 权重
+        print("✅ EfficientNet using ImageNet pretrained weights (built-in).")
+
+    else:
+        print(f"⚠️ Unknown model name '{model_name}', no pretrained weights loaded.")
+
+    return model
+
 def train():
     train_trans, eval_trans = get_transforms()
     train_set = CarBrandDataset(TRAIN_CSV, AUGMENTED_DIR, train_trans)
@@ -41,19 +91,15 @@ def train():
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
     
-    # 1. 先实例化模型结构
-    model = ImprovedCNN(num_classes=NUM_CLASSES).to(DEVICE)
-    
-    # 2. 加载预训练权重 (假设保存的是 state_dict)
-    model_path = os.path.join(MODELS_DIR, f"improved_cnn_{NUM_CLASSES}class_best.pth")
-    print(f"Looking for pretrained weights at: {model_path}")
-    if os.path.exists(model_path):
-        print(f"Loading pretrained weights from {model_path}")
-        # 加载 state_dict 并载入模型
-        state_dict = torch.load(model_path, map_location=DEVICE)
-        model.load_state_dict(state_dict)
+    # 模型初始化部分
+    if MODEL_NAME == "improved":
+        model = ImprovedCNN(num_classes=NUM_CLASSES).to(DEVICE)
+    elif MODEL_NAME == "efficientnet":
+        model = EfficientNetTransfer(num_classes=NUM_CLASSES, pretrained=PRETRAINED).to(DEVICE)
     else:
-        print("No pretrained weights found, training from scratch.")
+        raise ValueError(f"未知模型: {MODEL_NAME}")
+    
+    model = load_pretrained(model, MODEL_NAME, NUM_CLASSES, DEVICE)
     
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-4)
@@ -96,7 +142,8 @@ def train():
         val_accs.append(acc)
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.state_dict(), os.path.join(MODELS_DIR, f"improved_cnn_{NUM_CLASSES}class_best.pth"))
+            save_path = os.path.join(MODELS_DIR, f"{MODEL_NAME}_{NUM_CLASSES}class_best.pth")
+            torch.save(model.state_dict(), save_path)
         print(f"Epoch {epoch+1:2d} | Train Loss: {avg_loss:.4f} | Val Acc: {acc:.4f} | Best: {best_acc:.4f}")
 
     # 绘制曲线
@@ -108,7 +155,7 @@ def train():
     plt.plot(val_accs)
     plt.title("Validation Accuracy")
     plt.tight_layout()
-    plt.savefig(os.path.join(LOGS_DIR, "training_curves.png"))
+    plt.savefig(os.path.join(LOGS_DIR, f"training_curves_{NUM_CLASSES}class.png"))
     plt.show()
     print(f"Training finished. Best Acc: {best_acc:.4f}")
 

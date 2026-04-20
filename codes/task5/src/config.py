@@ -7,7 +7,7 @@
 # ========== 请修改这里的路径 ==========
 # D:\College\大三下\图像理解与机器视觉\Expe\codes\task5
 # D:\DeepLearning\Image-Understanding-and-Machine-Vision\codes\task5
-PROJECT_ROOT = r"D:\College\大三下\图像理解与机器视觉\Expe\codes\task5"
+PROJECT_ROOT = r"D:\DeepLearning\Image-Understanding-and-Machine-Vision\codes\task5"
 # ====================================
 
 import os

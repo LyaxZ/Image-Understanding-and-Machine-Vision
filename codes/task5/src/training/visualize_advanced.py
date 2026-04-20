@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 完整可视化：准确率对比柱状图 + 混淆矩阵 + Grad-CAM
+支持 ImprovedCNN 和 EfficientNet
 """
 
 import os
@@ -23,15 +24,25 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import AUGMENTED_DIR, TRAIN_CSV, VAL_CSV, TEST_CSV, MODELS_DIR, LOGS_DIR
 from utils.dataset import CarBrandDataset
 from models.improved_cnn import ImprovedCNN
+from models.efficientnet import EfficientNetTransfer
 
-# ========== 配置 ==========
-NUM_CLASSES = 6
+# ========== 配置（请根据需要修改） ==========
+MODEL_NAME = "efficientnet"          # 可选 "improved" 或 "efficientnet"
+NUM_CLASSES = 6                 # 6 或 13
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MODEL_PATH = os.path.join(MODELS_DIR, f"improved_cnn_{NUM_CLASSES}class_best.pth")
+
+# 根据模型名自动生成权重文件路径
+if MODEL_NAME == "improved":
+    MODEL_PATH = os.path.join(MODELS_DIR, f"improved_cnn_{NUM_CLASSES}class_best.pth")
+elif MODEL_NAME == "efficientnet":
+    MODEL_PATH = os.path.join(MODELS_DIR, f"efficientnet_{NUM_CLASSES}class_best.pth")
+else:
+    raise ValueError(f"Unsupported MODEL_NAME: {MODEL_NAME}")
 
 CLASS_NAMES = sorted([d for d in os.listdir(AUGMENTED_DIR) if os.path.isdir(os.path.join(AUGMENTED_DIR, d))])
 assert len(CLASS_NAMES) == NUM_CLASSES, f"类别数量不匹配，应为 {len(CLASS_NAMES)}"
 
+# 图像预处理
 transform = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -41,10 +52,20 @@ transform = transforms.Compose([
 
 # ========== 加载模型 ==========
 def load_model():
-    model = ImprovedCNN(num_classes=NUM_CLASSES).to(DEVICE)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+    if MODEL_NAME == "improved":
+        model = ImprovedCNN(num_classes=NUM_CLASSES).to(DEVICE)
+    elif MODEL_NAME == "efficientnet":
+        model = EfficientNetTransfer(num_classes=NUM_CLASSES, pretrained=False).to(DEVICE)
+    else:
+        raise ValueError(f"Unknown model name: {MODEL_NAME}")
+
+    if os.path.exists(MODEL_PATH):
+        state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
+        model.load_state_dict(state_dict)
+        print(f"✅ 模型加载成功：{MODEL_PATH}")
+    else:
+        raise FileNotFoundError(f"模型权重文件不存在：{MODEL_PATH}")
     model.eval()
-    print(f"✅ 模型加载成功：{MODEL_PATH}")
     return model
 
 # ========== 评估函数 ==========
@@ -74,7 +95,7 @@ def plot_accuracy_comparison(train_acc, val_acc, test_acc, save_path):
     bars = plt.bar(categories, accuracies, color=colors, alpha=0.8)
     plt.ylim(0, 1.0)
     plt.ylabel('准确率')
-    plt.title(f'模型准确率对比 ({NUM_CLASSES} 分类)')
+    plt.title(f'{MODEL_NAME} 准确率对比 ({NUM_CLASSES} 分类)')
 
     for bar, acc in zip(bars, accuracies):
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.02,
@@ -106,13 +127,24 @@ def plot_confusion_matrix(model, dataloader, save_path):
                 xticklabels=CLASS_NAMES, yticklabels=CLASS_NAMES)
     plt.xlabel('预测类别')
     plt.ylabel('真实类别')
-    plt.title(f'混淆矩阵 ({NUM_CLASSES} 分类)')
+    plt.title(f'{MODEL_NAME} 混淆矩阵 ({NUM_CLASSES} 分类)')
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
     print(f"✅ 混淆矩阵已保存：{save_path}")
 
 # ========== 3. Grad-CAM 可视化 ==========
+def get_target_layer(model):
+    """根据模型类型返回适合的 Grad-CAM 目标层"""
+    if MODEL_NAME == "improved":
+        return model.conv4_2   # ImprovedCNN 最后一个卷积层
+    elif MODEL_NAME == "efficientnet":
+        # EfficientNet 的最后一个卷积层位于 backbone 的某个位置
+        # 通常选择 blocks 的最后一层
+        return model.backbone.blocks[-1][-1]   # 可能因版本而异，可打印 model 调整
+    else:
+        raise ValueError(f"Unknown model for Grad-CAM: {MODEL_NAME}")
+
 def plot_gradcam_examples(model, dataset, save_dir, num_per_class=1):
     try:
         from pytorch_grad_cam import GradCAM
@@ -122,7 +154,7 @@ def plot_gradcam_examples(model, dataset, save_dir, num_per_class=1):
         return
 
     os.makedirs(save_dir, exist_ok=True)
-    target_layer = model.conv4_2
+    target_layer = get_target_layer(model)
 
     inv_normalize = transforms.Normalize(
         mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
@@ -177,15 +209,15 @@ def main():
     print(f"测试集准确率: {test_acc:.4f} | 测试集损失: {test_loss:.4f}")
 
     # 1. 准确率对比柱状图
-    acc_path = os.path.join(LOGS_DIR, f"accuracy_comparison_{NUM_CLASSES}class.png")
+    acc_path = os.path.join(LOGS_DIR, f"{MODEL_NAME}_accuracy_comparison_{NUM_CLASSES}class.png")
     plot_accuracy_comparison(train_acc, val_acc, test_acc, acc_path)
 
     # 2. 混淆矩阵
-    cm_path = os.path.join(LOGS_DIR, f"confusion_matrix_{NUM_CLASSES}class.png")
+    cm_path = os.path.join(LOGS_DIR, f"{MODEL_NAME}_confusion_matrix_{NUM_CLASSES}class.png")
     plot_confusion_matrix(model, test_loader, cm_path)
 
     # 3. Grad-CAM
-    gradcam_dir = os.path.join(LOGS_DIR, f"gradcam_{NUM_CLASSES}class")
+    gradcam_dir = os.path.join(LOGS_DIR, f"{MODEL_NAME}_gradcam_{NUM_CLASSES}class")
     plot_gradcam_examples(model, test_dataset, gradcam_dir, num_per_class=1)
 
     print("\n🎉 所有可视化完成！")
